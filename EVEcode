@@ -1,0 +1,306 @@
+/*======================================================
+                   THE EVE SLEEVE
+          BROUGHT TO YOU BY POWER SUIT TECH
+               CREATED AND CODED BY
+     PAYTON LASKIE, BRYCE NORRIS, AND LEGEND VIRES
+=======================================================*/
+
+/*Initializing Pin Values*/
+#define MQ6_PIN (0)
+#define MQ7_PIN (1)
+#define MQ8_PIN (2)
+#define MQ9_PIN (3)
+
+
+/*Resistance Load Values*/
+#define RL6_VALUE (20)
+#define RL7_VALUE (10)
+#define RL8_VALUE (10)
+#define RL9_VALUE (20)
+
+
+/*Clean Air Resistance*/
+#define RO6_CLEAN_AIR_FACTOR (10)
+#define RO7_CLEAN_AIR_FACTOR (27)
+#define RO8_CLEAN_AIR_FACTOR (70)
+#define RO9_CLEAN_AIR_FACTOR (10)
+ 
+/*Calibration Setup*/
+#define CALIBRATION_SAMPLE_TIMES     (15)
+#define CALIBRATION_SAMPLE_INTERVAL  (400)
+#define READ_SAMPLE_INTERVAL         (50)
+#define READ_SAMPLE_TIMES            (5)
+ 
+/*Gas Values for Later Use*/
+#define GAS6_LPG  (0)
+#define GAS6_CH4  (1)
+#define GAS6_H2   (2)
+#define GAS7_H2   (3)
+#define GAS7_CO   (4)
+#define GAS8_H2   (5)
+#define GAS9_CO   (6)
+#define GAS9_LPG  (7)
+#define GAS9_CH4  (8)
+ 
+/*Globally Used Variables*/
+float LPGCurve6[3] =  {3,   0,  -0.4};
+float CH4Curve6[3] =  {3.3, 0,  -0.38};
+float H2Curve6[3] =   {3, 0.518514, -0.252712};
+float H2Curve7[3] =   {2, -0.09691, -0.757287};
+float COCurve7[3] =   {2, 0, -0.65276};
+float H2Curve8[3] =   {3, 0, -1.5376};
+float COCurve9[3] =   {3, 0.518514, -0.252712};
+float LPGCurve9[3] =  {3, 0, -0.480273};
+float CH4Curve9[3] =  {3, 0.255273, -0.110398};
+
+
+float Ro6 = 0;
+float Ro7 = 0;
+float Ro8 = 0;
+float Ro9 = 0;
+
+
+float LPG_PPM;
+float CH4_PPM;
+float CO_PPM;
+float H2_PPM;
+
+void setup()
+{
+  Serial.begin(9600);
+  Serial.print("Calibrating...\n");
+  Ro6 = MQCalibration(RL6_VALUE, MQ6_PIN, RO6_CLEAN_AIR_FACTOR);
+  Serial.print("Calibrating: 1 of 4 complete...\n");
+  Ro7 = MQCalibration(RL7_VALUE, MQ7_PIN, RO7_CLEAN_AIR_FACTOR);
+  Serial.print("Calibrating: 2 of 4 complete...\n");
+  Ro8 = MQCalibration(RL8_VALUE, MQ8_PIN, RO8_CLEAN_AIR_FACTOR);
+  Serial.print("Calibrating: 3 of 4 complete...\n");
+  Ro9 = MQCalibration(RL9_VALUE, MQ9_PIN, RO9_CLEAN_AIR_FACTOR);
+  Serial.print("Calibration is done...\n\n");
+ 
+  Serial.print("Ro6=");
+  Serial.print(Ro6);
+  Serial.print("kohm\n");
+
+
+  Serial.print("Ro7=");
+  Serial.print(Ro7);
+  Serial.print("kohm\n");
+
+
+  Serial.print("Ro8=");
+  Serial.print(Ro8);
+  Serial.print("kohm\n");
+ 
+  Serial.print("Ro9=");
+  Serial.print(Ro9);
+  Serial.print("kohm\n\n");
+  delay(100);
+}
+ 
+void loop()
+{
+
+
+  LPG_PPM = (((MQGetGasPercentage(MQRead(RL6_VALUE, MQ6_PIN)/Ro6,GAS6_LPG)) + ((MQGetGasPercentage(MQRead(RL9_VALUE, MQ9_PIN)/Ro9,GAS9_LPG))) / 2 ) -  
+    ((MQGetGasPercentage(MQRead(RL7_VALUE, MQ7_PIN)/Ro7,GAS7_H2))) / 2 );
+  gaugePosition(LPG_PPM, .135, 1);
+  String ppmString1 = String(LPG_PPM, 2);
+  Serial.print("value1.txt=\"" + ppmString1 + "\"");
+  Serial.write(0xff);
+  Serial.write(0xff);
+  Serial.write(0xff);
+  Serial.print("(");
+  Serial.print(LPG_PPM);
+  Serial.print(")");
+
+  CH4_PPM = (((MQGetGasPercentage(MQRead(RL6_VALUE, MQ6_PIN)/Ro6,GAS6_LPG)) + ((MQGetGasPercentage(MQRead(RL9_VALUE, MQ9_PIN)/Ro9,GAS9_LPG))) / 2 ) - 
+    ((MQGetGasPercentage(MQRead(RL7_VALUE, MQ7_PIN)/Ro7,GAS7_CO)) + (MQGetGasPercentage(MQRead(RL7_VALUE, MQ7_PIN)/Ro7,GAS7_H2))) / 2 );
+  gaugePosition(CH4_PPM, .135, 4);
+  String ppmString2 = String(CH4_PPM, 2);
+  Serial.print("value4.txt=\"" + ppmString2 + "\"");
+  Serial.write(0xff);
+  Serial.write(0xff);
+  Serial.write(0xff);
+  Serial.print("(");
+  Serial.print(CH4_PPM);
+  Serial.print(")");
+
+  CO_PPM = (((MQGetGasPercentage(MQRead(RL7_VALUE, MQ7_PIN)/Ro6,GAS7_CO)) + ((MQGetGasPercentage(MQRead(RL9_VALUE, MQ9_PIN)/Ro9,GAS9_CO))) / 2 ) -
+    ((MQGetGasPercentage(MQRead(RL6_VALUE, MQ6_PIN)/Ro6,GAS6_LPG)) + (MQGetGasPercentage(MQRead(RL6_VALUE, MQ6_PIN)/Ro6,GAS6_CH4))) / 2 );
+  gaugePosition(CO_PPM, 2.7, 3);
+  String ppmString3 = String(CO_PPM, 2);
+  Serial.print("value3.txt=\"" + ppmString3 + "\"");
+  Serial.write(0xff);
+  Serial.write(0xff);
+  Serial.write(0xff);
+  Serial.print("(");
+  Serial.print(CO_PPM);
+  Serial.print(")");
+  Serial.print("\n");
+  Serial.print("(");
+  Serial.print(CO_PPM);
+  Serial.print(")");
+  
+  H2_PPM = (((MQGetGasPercentage(MQRead(RL7_VALUE, MQ7_PIN)/Ro7,GAS7_H2)) + ((MQGetGasPercentage(MQRead(RL8_VALUE, MQ8_PIN)/Ro8,GAS8_H2))) / 2 ) -
+    ((MQGetGasPercentage(MQRead(RL9_VALUE, MQ9_PIN)/Ro9,GAS9_CO))));
+  gaugePosition(H2_PPM, 0.06585, 2);
+  String ppmString4 = String(H2_PPM, 2);
+  Serial.print("value2.txt=\"" + ppmString4 + "\"");
+  Serial.write(0xff);
+  Serial.write(0xff);
+  Serial.write(0xff);
+  Serial.print("(");
+  Serial.print(H2_PPM);
+  Serial.print(")");
+  Serial.print("\n");
+  Serial.print("(");
+  Serial.print(H2_PPM);
+  Serial.print(")");
+  
+  delay(1000);
+}
+ 
+/*Calculate the actual resistance of the sensor*/
+float MQResistanceCalculation(float RL_VALUE, int raw_adc)
+{
+  return ( ((float)RL_VALUE*(1023-raw_adc)/raw_adc));
+}
+ 
+/*Calibrate the Ro value of the sensors*/
+float MQCalibration(int RL_VALUE, int PIN, int RO_CLEAN_AIR_FACTOR)
+{
+  int i;
+  float val = 0;
+ 
+  for (i=0;i<CALIBRATION_SAMPLE_TIMES;i++) {
+    val += MQResistanceCalculation(RL_VALUE, analogRead(PIN));
+    delay(CALIBRATION_SAMPLE_INTERVAL);
+  }
+  val = val/CALIBRATION_SAMPLE_TIMES;
+  val = val/RO_CLEAN_AIR_FACTOR; 
+
+  return (val);
+}
+
+/*Calculates the sensor's resistance*/
+float MQRead(int RL_VALUE, int mq_pin)
+{
+  int i;
+  float rs=0;
+ 
+  for (i=0;i<READ_SAMPLE_TIMES;i++) {
+    rs += MQResistanceCalculation(RL_VALUE, analogRead(mq_pin));
+    delay(READ_SAMPLE_INTERVAL);
+  }
+ 
+  rs = rs/READ_SAMPLE_TIMES;
+ 
+  return rs;  
+}
+ 
+/*Passes gas curves into MQGetPPM function to produce the ppm of the gas*/
+float MQGetGasPercentage(float rs_ro_ratio, int gas_id)
+{
+  if (gas_id == GAS6_LPG) {
+     return MQGetPPM(rs_ro_ratio,LPGCurve6);
+  } else if (gas_id == GAS6_CH4) {
+      return MQGetPPM(rs_ro_ratio,CH4Curve6);
+  } else if (gas_id == GAS6_H2) {
+      return MQGetPPM(rs_ro_ratio,H2Curve6);
+  } else if (gas_id == GAS7_H2) {
+      return MQGetPPM(rs_ro_ratio,H2Curve7);
+  } else if (gas_id == GAS7_CO) {
+      return MQGetPPM(rs_ro_ratio,COCurve7);
+  } else if (gas_id == GAS8_H2) {
+      return MQGetPPM(rs_ro_ratio,H2Curve8);
+  } else if (gas_id == GAS9_CO) {
+      return MQGetPPM(rs_ro_ratio,COCurve9);
+  } else if (gas_id == GAS9_LPG) {
+      return MQGetPPM(rs_ro_ratio,LPGCurve9);
+  } else if (gas_id == GAS9_CH4) {
+      return MQGetPPM(rs_ro_ratio,CH4Curve9);
+  }
+  return 0;
+}
+ 
+/*Convert logarithmic to a ppm*/
+float  MQGetPPM(float rs_ro_ratio, float *pcurve)
+{
+  return (pow(10, (((log10(rs_ro_ratio)-pcurve[1])/pcurve[2]) + pcurve[0])));
+}
+
+int gaugePosition(float gasPPM, float gasMulti, int whichGauge){
+  int y = (int)(gasPPM * gasMulti);
+
+  if(whichGauge == 1){
+    if(y+315 < 360){
+      Serial.print("gauge1.val=");
+      Serial.print(y + 315);
+      Serial.write(0xff);
+      Serial.write(0xff);
+      Serial.write(0xff);
+    }
+    else if(y+315 >= 360){
+      Serial.print("gauge1.val=");
+      Serial.print(y - 45);
+      Serial.write(0xff);
+      Serial.write(0xff);
+      Serial.write(0xff);
+    }
+  }
+
+  if(whichGauge == 2){
+    if(y+315 < 360){
+      Serial.print("gauge2.val=");
+      Serial.print(y + 315);
+      Serial.write(0xff);
+      Serial.write(0xff);
+      Serial.write(0xff);
+    }
+    else if(y+315 >= 360){
+      Serial.print("gauge2.val=");
+      Serial.print(y - 45);
+      Serial.write(0xff);
+      Serial.write(0xff);
+      Serial.write(0xff);
+    }
+  }
+
+  if(whichGauge == 3){
+    if(y+315 < 360){
+      Serial.print("gauge3.val=");
+      Serial.print(y + 315);
+      Serial.write(0xff);
+      Serial.write(0xff);
+      Serial.write(0xff);
+    }
+    else if(y+315 >= 360){
+      Serial.print("gauge3.val=");
+      Serial.print(y - 45);
+      Serial.write(0xff);
+      Serial.write(0xff);
+      Serial.write(0xff);
+    }
+  }
+
+  if(whichGauge == 4){
+    if(y+315 < 360){
+      Serial.print("gauge4.val=");
+      Serial.print(y + 315);
+      Serial.write(0xff);
+      Serial.write(0xff);
+      Serial.write(0xff);
+    }
+    else if(y+315 >= 360){
+      Serial.print("gauge4.val=");
+      Serial.print(y - 45);
+      Serial.write(0xff);
+      Serial.write(0xff);
+      Serial.write(0xff);
+    }
+  }
+}
+
+
+/*Credit for MQ6 Sensor Setup Code: www.circuits4you.com*/
